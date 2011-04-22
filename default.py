@@ -90,12 +90,12 @@ def list_category(category):
 	for station in re.compile(u"<li?[= \d\w\"]+><h2[\=\w\d\. /\"]+><a href=\"(?P<url>[-:\.\w\d/]+)\" title=\""+TITLE+"\">(?P<name>"+TITLE+")</a>").finditer(data,re.IGNORECASE|re.DOTALL):
 		i=re.match('.*/([\d]+)/.*',station.group('url'))
 		station_id=i.group(1)
-		add_dir(station.group('name'),'station='+station_id,get_logo(station.group('url')))
+		add_dir(station.group('name'),'station='+station_id,BASE_URL+'/data/s/'+station_id+'/logo.gif')
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
-def get_logo(station):
-	data = substring(request(station),'<link rel=\"image_src\"','/>')
-	return BASE_URL+re.compile('.*href=\"([-\d\w\/\.]+)\"').findall(data)[0]
+#def get_logo(station):
+#	data = substring(request(station),'<link rel=\"image_src\"','/>')
+#	return BASE_URL+re.compile('.*href=\"([-\d\w\/\.]+)\"').findall(data)[0]
 
 def station_name(data):
 	data = substring(data,'<div class=\"logo\">','</h1>')
