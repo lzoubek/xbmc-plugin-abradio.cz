@@ -25,7 +25,7 @@ import xbmcaddon,xbmc,xbmcgui,xbmcplugin
 BASE_URL='http://abradio.cz'
 PLAYER_BASE_URL='http://static.abradio.cz'
 CZECH_CHARS=u"ěščřžýáíéúóČŽ"
-TITLE=u"[-\/ \.\w\d"+CZECH_CHARS+"]+"
+TITLE=u"[;\&-\/ \.\w\d"+CZECH_CHARS+"]+"
 
 def request(url):
 	req = urllib2.Request(url)
@@ -34,7 +34,15 @@ def request(url):
 	response.close()
 	return unicode(data,'UTF-8')
 
+def request2(url):
+	req = urllib2.Request(url)
+	response = urllib2.urlopen(req)
+	data = response.read()
+	response.close()
+	return data
+
 def add_dir(name,id):
+	name = name.replace('&amp;','&')
         u=sys.argv[0]+"?"+id
 	liz=xbmcgui.ListItem(name, iconImage="DefaultFolder.png")
         liz.setInfo( type="Audio", infoLabels={ "Title": name } )
@@ -43,18 +51,30 @@ def add_dir(name,id):
 def add_stream(name,url):
 	if url.find('http://') < 0:
 		url = PLAYER_BASE_URL+url
+	url = parse_asx(url)
 	li=xbmcgui.ListItem(name,path = url)
         li.setInfo( type="Audio", infoLabels={ "Title": name } )
 	li.setProperty("IsPlayable","true")
         return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=li,isFolder=False)
 
+def parse_asx(url):
+	data = request2(url)
+	refs = re.compile('.*\"((mms|http)://[\?\d:\w_\.\/=-]+)\".*').findall(data,re.IGNORECASE|re.DOTALL|re.MULTILINE)
+	urls = []
+	for ref in refs:
+		stream = ref[0]
+		if stream.endswith('asx'):
+			stream = parse_asx(stream)
+		if stream.startswith('mms'):
+			urls.append(stream)
+	return urls[-1]
 def get_categories():
 	data = request(BASE_URL)
 	# get div with categories
 	i1 = data.find('<div id=\"categories\"')
 	i2 = data.find('</div>',i1)
 	data = data[i1:i2]
-	for cat in re.compile(u"<li><a href=\"(?P<dest>[\/\w-]+)\" title=\""+TITLE+"\">(?P<name>["+CZECH_CHARS+"\w\.\/\ ]+)</a></li>").finditer(data,re.IGNORECASE|re.DOTALL):
+	for cat in re.compile(u"<li><a href=\"(?P<dest>[\/\w-]+)\" title=\""+TITLE+"\">(?P<name>"+TITLE+")</a></li>").finditer(data,re.IGNORECASE|re.DOTALL):
 		add_dir(cat.group('name'),'category='+cat.group('dest'))
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
