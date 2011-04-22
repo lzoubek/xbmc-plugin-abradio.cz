@@ -58,6 +58,8 @@ def add_stream(name,url):
         return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=li,isFolder=False)
 
 def parse_asx(url):
+	if not url.endswith('asx'):
+		return url
 	data = request2(url)
 	refs = re.compile('.*\"((mms|http)://[\?\d:\w_\.\/=-]+)\".*').findall(data,re.IGNORECASE|re.DOTALL|re.MULTILINE)
 	urls = []
