@@ -48,12 +48,13 @@ def add_dir(name,id,logo):
         liz.setInfo( type="Audio", infoLabels={ "Title": name } )
         return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=True)
 
-def add_stream(name,url):
+def add_stream(name,url,bitrate,logo):
+	name = name.replace('&amp;','&')
 	if url.find('http://') < 0:
 		url = PLAYER_BASE_URL+url
 	url = parse_asx(url)
-	li=xbmcgui.ListItem(name,path = url,iconImage="DefaultAudio.png")
-        li.setInfo( type="Audio", infoLabels={ "Title": name } )
+	li=xbmcgui.ListItem(name,path = url,iconImage="DefaultAudio.png",thumbnailImage=logo)
+        li.setInfo( type="Music", infoLabels={ "Title": name,"Size":bitrate } )
 	li.setProperty("IsPlayable","true")
         return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=li,isFolder=False)
 
@@ -72,49 +73,59 @@ def parse_asx(url):
 		return ''
 	return urls[-1]
 
+def substring(data,start,end):
+	i1 = data.find(start)
+	i2 = data.find(end,i1+1)
+	return data[i1:i2]
+
 def get_categories():
-	data = request(BASE_URL)
-	# get div with categories
-	i1 = data.find('<div id=\"categories\"')
-	i2 = data.find('</div>',i1)
-	data = data[i1:i2]
+	data = substring(request(BASE_URL),'<div id=\"categories\"','</div>')
 	for cat in re.compile(u"<li><a href=\"(?P<dest>[\/\w-]+)\" title=\""+TITLE+"\">(?P<name>"+TITLE+")</a></li>").finditer(data,re.IGNORECASE|re.DOTALL):
 		add_dir(cat.group('name'),'category='+cat.group('dest'),'')
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
 def list_category(category):
 	data = request(BASE_URL+category)
-	i1 = data.find('<ul class=\"stationlist\">')
-	i2 = data.find('</ul>',i1)
-	data = data[i1:i2]
+	data = substring(data,'<ul class=\"stationlist\">','</ul>')
 	for station in re.compile(u"<li?[= \d\w\"]+><h2[\=\w\d\. /\"]+><a href=\"(?P<url>[-:\.\w\d/]+)\" title=\""+TITLE+"\">(?P<name>"+TITLE+")</a>").finditer(data,re.IGNORECASE|re.DOTALL):
 		i=re.match('.*/([\d]+)/.*',station.group('url'))
 		station_id=i.group(1)
-		add_dir(station.group('name'),'station='+station_id,unicode(get_logo(station.group('url'))))
+		add_dir(station.group('name'),'station='+station_id,get_logo(station.group('url')))
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
 def get_logo(station):
-	data = request(station)
-	i1 = data.find('<link rel=\"image_src\"')
-	i2 = data.find('/>',i1)
-	data = data[i1:i2]
+	data = substring(request(station),'<link rel=\"image_src\"','/>')
 	return BASE_URL+re.compile('.*href=\"([-\d\w\/\.]+)\"').findall(data)[0]
+
+def station_name(data):
+	data = substring(data,'<div class=\"logo\">','</h1>')
+	return re.compile('.*<h1>('+TITLE+')').findall(data)[0]
+
+def station_logo(data):
+	logo = substring(data,'<img class=\"logo\" src=\"','alt')
+	logo = re.compile('.*src=\"([\w\d\/\.]+)\".*').findall(logo)
+	return BASE_URL+logo[0]
 
 def resolve_station(id):
 	data = request(PLAYER_BASE_URL+'/player/'+id)
-	i1 = data.find('<div id=\"playerplugin\">')
-	i2 = data.find('</select>',i1)
-	data = data[i1:i2]
+	name =  station_name(data)
+	logo = station_logo(data)
+	data = substring(data,'<div id=\"playerplugin\">','</select>')
 	for quality in re.compile(u"<option value=\"(?P<stream>[\d]+)\"([=\w\" ]+)?>(?P<name>["+CZECH_CHARS+"\(\)\d\w ]+)</option>").finditer(data,re.IGNORECASE|re.DOTALL):
 		stream = resolve_station_link(PLAYER_BASE_URL+'/player/'+id+'/'+quality.group('stream'))
-		add_stream(quality.group('name'),stream)
+		bitrate = quality.group('name')[quality.group('name').find('(')+1:len(quality.group('name'))-5]
+		bit = 0
+		try:
+			bit = int(bitrate)
+		except:
+			pass
+		add_stream(name,stream,bit,logo)
+	xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_LABEL, label2Mask="%X")
+	xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_BITRATE, label2Mask="%X")
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
 def resolve_station_link(link):
-	data = request(link)
-	i1 = data.find('<object id=\"iRadio\"')
-	i2 = data.find('</object>',i1)
-	data = data[i1:i2]
+	data = substring(request(link),'<object id=\"iRadio\"','</object>')
 	link = re.compile('.*<param name=\"url\" value=\"([-/\d\w\.:]+)\".*').match(data)
 	if link == None:
 		return ''
@@ -144,6 +155,6 @@ params=get_params()
 if params=={}:
 	get_categories()
 if 'category' in params.keys():
-	list_category(params['category']+'/')	
+	list_category(params['category']+'/')
 if 'station' in params.keys():
 	resolve_station(params['station'])
