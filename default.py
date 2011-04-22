@@ -41,10 +41,10 @@ def request2(url):
 	response.close()
 	return data
 
-def add_dir(name,id):
+def add_dir(name,id,logo):
 	name = name.replace('&amp;','&')
         u=sys.argv[0]+"?"+id
-	liz=xbmcgui.ListItem(name, iconImage="DefaultFolder.png")
+	liz=xbmcgui.ListItem(name, iconImage="DefaultFolder.png",thumbnailImage=logo)
         liz.setInfo( type="Audio", infoLabels={ "Title": name } )
         return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=True)
 
@@ -52,7 +52,7 @@ def add_stream(name,url):
 	if url.find('http://') < 0:
 		url = PLAYER_BASE_URL+url
 	url = parse_asx(url)
-	li=xbmcgui.ListItem(name,path = url)
+	li=xbmcgui.ListItem(name,path = url,iconImage="DefaultAudio.png")
         li.setInfo( type="Audio", infoLabels={ "Title": name } )
 	li.setProperty("IsPlayable","true")
         return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=li,isFolder=False)
@@ -61,15 +61,17 @@ def parse_asx(url):
 	if not url.endswith('asx'):
 		return url
 	data = request2(url)
-	refs = re.compile('.*\"((mms|http)://[\?\d:\w_\.\/=-]+)\".*').findall(data,re.IGNORECASE|re.DOTALL|re.MULTILINE)
+	refs = re.compile('.*<Ref href = \"((mms|http)://[\?\d:\w_\.\/=-]+)\".*').findall(data,re.IGNORECASE|re.DOTALL|re.MULTILINE)
 	urls = []
 	for ref in refs:
-		stream = ref[0]
-		if stream.endswith('asx'):
-			stream = parse_asx(stream)
-		if stream.startswith('mms'):
-			urls.append(stream)
+		stream = parse_asx(ref[0])
+		urls.append(stream)
+	if urls == []:
+		print 'Unable to parse '+url
+		print data
+		return ''
 	return urls[-1]
+
 def get_categories():
 	data = request(BASE_URL)
 	# get div with categories
@@ -77,7 +79,7 @@ def get_categories():
 	i2 = data.find('</div>',i1)
 	data = data[i1:i2]
 	for cat in re.compile(u"<li><a href=\"(?P<dest>[\/\w-]+)\" title=\""+TITLE+"\">(?P<name>"+TITLE+")</a></li>").finditer(data,re.IGNORECASE|re.DOTALL):
-		add_dir(cat.group('name'),'category='+cat.group('dest'))
+		add_dir(cat.group('name'),'category='+cat.group('dest'),'')
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
 def list_category(category):
@@ -88,8 +90,15 @@ def list_category(category):
 	for station in re.compile(u"<li?[= \d\w\"]+><h2[\=\w\d\. /\"]+><a href=\"(?P<url>[-:\.\w\d/]+)\" title=\""+TITLE+"\">(?P<name>"+TITLE+")</a>").finditer(data,re.IGNORECASE|re.DOTALL):
 		i=re.match('.*/([\d]+)/.*',station.group('url'))
 		station_id=i.group(1)
-		add_dir(station.group('name'),'station='+station_id)
+		add_dir(station.group('name'),'station='+station_id,unicode(get_logo(station.group('url'))))
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
+
+def get_logo(station):
+	data = request(station)
+	i1 = data.find('<link rel=\"image_src\"')
+	i2 = data.find('/>',i1)
+	data = data[i1:i2]
+	return BASE_URL+re.compile('.*href=\"([-\d\w\/\.]+)\"').findall(data)[0]
 
 def resolve_station(id):
 	data = request(PLAYER_BASE_URL+'/player/'+id)
