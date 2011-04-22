@@ -84,13 +84,33 @@ def get_categories():
 		add_dir(cat.group('name'),'category='+cat.group('dest'),'')
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
-def list_category(category):
-	data = request(BASE_URL+category)
+def list_stations(data):
 	data = substring(data,'<ul class=\"stationlist\">','</ul>')
 	for station in re.compile(u"<li?[= \d\w\"]+><h2[\=\w\d\. /\"]+><a href=\"(?P<url>[-:\.\w\d/]+)\" title=\""+TITLE+"\">(?P<name>"+TITLE+")</a>").finditer(data,re.IGNORECASE|re.DOTALL):
 		i=re.match('.*/([\d]+)/.*',station.group('url'))
 		station_id=i.group(1)
 		add_dir(station.group('name'),'station='+station_id,BASE_URL+'/data/s/'+station_id+'/logo.gif')
+
+def get_pages(data):
+	pages = []
+	data = substring(data,'<div class=\"pageControls\">','</div>')
+	i=0
+	j=0
+	while True:
+		i = data.find('href',i)
+		if i<j:
+			break
+		j = data.find('\"',i+6)
+		pages.append(data[i+6:j])
+		i = j
+	return pages
+def list_category(category):
+	data = request(BASE_URL+category)
+	list_stations(data)
+	if data.find('<div class=\"pageControls\">')>0:
+		for page in get_pages(data):
+			list_stations(request(BASE_URL+page))
+	xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_LABEL, label2Mask="%X")
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
 #def get_logo(station):
