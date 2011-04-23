@@ -24,8 +24,8 @@ import xbmcaddon,xbmc,xbmcgui,xbmcplugin
 
 BASE_URL='http://abradio.cz'
 PLAYER_BASE_URL='http://static.abradio.cz'
-CZECH_CHARS=u"ěščřžýáíéúóČŽ"
-TITLE=u"[;\&-\/ \.\w\d"+CZECH_CHARS+"]+"
+CZECH_CHARS=u"ěščřžýáíéúóČÍÁÉÚÓŽ"
+TITLE=u"[\!;\&-\/ \.\w\d"+CZECH_CHARS+"]+"
 
 def request(url):
 	req = urllib2.Request(url)
@@ -90,7 +90,6 @@ def list_stations(data):
 		i=re.match('.*/([\d]+)/.*',station.group('url'))
 		station_id=i.group(1)
 		add_dir(station.group('name'),'station='+station_id,BASE_URL+'/data/s/'+station_id+'/logo.gif')
-
 def get_pages(data):
 	pages = []
 	data = substring(data,'<div class=\"pageControls\">','</div>')
@@ -101,7 +100,8 @@ def get_pages(data):
 		if i<j:
 			break
 		j = data.find('\"',i+6)
-		pages.append(data[i+6:j])
+		if not data[i+6:j] in pages:
+			pages.append(data[i+6:j])
 		i = j
 	return pages
 def list_category(category):
