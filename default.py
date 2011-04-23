@@ -52,12 +52,15 @@ def add_stream(name,url,bitrate,logo):
 	name = name.replace('&amp;','&')
 	if url.find('http://') < 0:
 		url = PLAYER_BASE_URL+url
-	url = parse_asx(url)
+	url=sys.argv[0]+"?play="+url
 	li=xbmcgui.ListItem(name,path = url,iconImage="DefaultAudio.png",thumbnailImage=logo)
         li.setInfo( type="Music", infoLabels={ "Title": name,"Size":bitrate } )
 	li.setProperty("IsPlayable","true")
         return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=li,isFolder=False)
 
+def play(url):
+	li = xbmcgui.ListItem(path=parse_asx(url),iconImage='DefaulAudio.png')
+	return xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
 def parse_asx(url):
 	if not url.endswith('asx'):
 		return url
@@ -181,3 +184,5 @@ if 'category' in params.keys():
 	list_category(params['category']+'/')
 if 'station' in params.keys():
 	resolve_station(params['station'])
+if 'play' in params.keys():
+	play(params['play'])
