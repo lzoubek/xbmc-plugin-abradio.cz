@@ -26,14 +26,14 @@ BASE_URL='http://abradio.cz'
 PLAYER_BASE_URL='http://static.abradio.cz'
 CZECH_CHARS=u"ěščřžýáíéúóČÍÁÉÚÓŽ"
 TITLE=u"[\!;\&-\/ \.\w\d"+CZECH_CHARS+"]+"
-
+# do http request, return unicode
 def request(url):
 	req = urllib2.Request(url)
 	response = urllib2.urlopen(req)
 	data = response.read()
 	response.close()
 	return unicode(data,'UTF-8')
-
+#do http request
 def request2(url):
 	req = urllib2.Request(url)
 	response = urllib2.urlopen(req)
@@ -61,6 +61,7 @@ def add_stream(name,url,bitrate,logo):
 def play(url):
 	li = xbmcgui.ListItem(path=parse_asx(url),iconImage='DefaulAudio.png')
 	return xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
+# retrieve target stream if url is asx
 def parse_asx(url):
 	if not url.endswith('asx'):
 		return url
@@ -80,19 +81,20 @@ def substring(data,start,end):
 	i1 = data.find(start)
 	i2 = data.find(end,i1+1)
 	return data[i1:i2]
-
-def get_categories():
+# lists station categories, index
+def list_categories():
 	data = substring(request(BASE_URL),'<div id=\"categories\"','</div>')
 	for cat in re.compile(u"<li><a href=\"(?P<dest>[\/\w-]+)\" title=\""+TITLE+"\">(?P<name>"+TITLE+")</a></li>").finditer(data,re.IGNORECASE|re.DOTALL):
 		add_dir(cat.group('name'),'category='+cat.group('dest'),'',10)
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
-
+# lists stations using data 
 def list_stations(data,total):
 	data = substring(data,'<ul class=\"stationlist\">','</ul>')
 	for station in re.compile(u"<li?[= \d\w\"]+><h2[\=\w\d\. /\"]+><a href=\"(?P<url>[-:\.\w\d/]+)\" title=\""+TITLE+"\">(?P<name>"+TITLE+")</a>").finditer(data,re.IGNORECASE|re.DOTALL):
 		i=re.match('.*/([\d]+)/.*',station.group('url'))
 		station_id=i.group(1)
 		add_dir(station.group('name'),'station='+station_id,BASE_URL+'/data/s/'+station_id+'/logo.gif',total)
+# gets list of page links - for large cateogries which are listed on more than 1 pages
 def get_pages(data):
 	pages = []
 	data = substring(data,'<div class=\"pageControls\">','</div>')
@@ -107,6 +109,7 @@ def get_pages(data):
 			pages.append(data[i+6:j])
 		i = j
 	return pages
+# lists stations in given category
 def list_category(category):
 	data = request(BASE_URL+category)
 	total = 20
@@ -123,22 +126,23 @@ def list_category(category):
 #	data = substring(request(station),'<link rel=\"image_src\"','/>')
 #	return BASE_URL+re.compile('.*href=\"([-\d\w\/\.]+)\"').findall(data)[0]
 
+# get station name 
 def station_name(data):
 	data = substring(data,'<div class=\"logo\">','</h1>')
 	return re.compile('.*<h1>('+TITLE+')').findall(data)[0]
-
+# get station logo
 def station_logo(data):
 	logo = substring(data,'<img class=\"logo\" src=\"','alt')
 	logo = re.compile('.*src=\"([\w\d\/\.]+)\".*').findall(logo)
 	return BASE_URL+logo[0]
-
+# get station, resolve all available streams + bitrates
 def resolve_station(id):
 	data = request(PLAYER_BASE_URL+'/player/'+id)
 	name =  station_name(data)
 	logo = station_logo(data)
 	data = substring(data,'<div id=\"playerplugin\">','</select>')
 	for quality in re.compile(u"<option value=\"(?P<stream>[\d]+)\"([=\w\" ]+)?>(?P<name>["+CZECH_CHARS+"\(\)\d\w ]+)</option>").finditer(data,re.IGNORECASE|re.DOTALL):
-		stream = resolve_station_link(PLAYER_BASE_URL+'/player/'+id+'/'+quality.group('stream'))
+		stream = stream_link(PLAYER_BASE_URL+'/player/'+id+'/'+quality.group('stream'))
 		bitrate = quality.group('name')[quality.group('name').find('(')+1:len(quality.group('name'))-5]
 		bit = 0
 		try:
@@ -149,14 +153,14 @@ def resolve_station(id):
 	xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_LABEL, label2Mask="%X")
 	xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_BITRATE, label2Mask="%X")
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
-
-def resolve_station_link(link):
+# gets .asx or m3u link
+def stream_link(link):
 	data = substring(request(link),'<object id=\"iRadio\"','</object>')
 	link = re.compile('.*<param name=\"url\" value=\"([-/\d\w\.:]+)\".*').match(data)
 	if link == None:
 		return ''
 	return link.group(1)
-
+# retrieves input addon parameters
 def get_params():
         param={}
         paramstring=sys.argv[2]
@@ -179,7 +183,7 @@ __settings__ = xbmcaddon.Addon(id='plugin.audio.abradio.cz')
 __language__ = __settings__.getLocalizedString
 params=get_params()
 if params=={}:
-	get_categories()
+	list_categories()
 if 'category' in params.keys():
 	list_category(params['category']+'/')
 if 'station' in params.keys():
