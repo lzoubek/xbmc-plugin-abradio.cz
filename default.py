@@ -41,12 +41,12 @@ def request2(url):
 	response.close()
 	return data
 
-def add_dir(name,id,logo):
+def add_dir(name,id,logo,total):
 	name = name.replace('&amp;','&')
         u=sys.argv[0]+"?"+id
 	liz=xbmcgui.ListItem(name, iconImage="DefaultFolder.png",thumbnailImage=logo)
         liz.setInfo( type="Audio", infoLabels={ "Title": name } )
-        return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=True)
+        return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=True,totalItems=total)
 
 def add_stream(name,url,bitrate,logo):
 	name = name.replace('&amp;','&')
@@ -81,15 +81,15 @@ def substring(data,start,end):
 def get_categories():
 	data = substring(request(BASE_URL),'<div id=\"categories\"','</div>')
 	for cat in re.compile(u"<li><a href=\"(?P<dest>[\/\w-]+)\" title=\""+TITLE+"\">(?P<name>"+TITLE+")</a></li>").finditer(data,re.IGNORECASE|re.DOTALL):
-		add_dir(cat.group('name'),'category='+cat.group('dest'),'')
+		add_dir(cat.group('name'),'category='+cat.group('dest'),'',10)
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
-def list_stations(data):
+def list_stations(data,total):
 	data = substring(data,'<ul class=\"stationlist\">','</ul>')
 	for station in re.compile(u"<li?[= \d\w\"]+><h2[\=\w\d\. /\"]+><a href=\"(?P<url>[-:\.\w\d/]+)\" title=\""+TITLE+"\">(?P<name>"+TITLE+")</a>").finditer(data,re.IGNORECASE|re.DOTALL):
 		i=re.match('.*/([\d]+)/.*',station.group('url'))
 		station_id=i.group(1)
-		add_dir(station.group('name'),'station='+station_id,BASE_URL+'/data/s/'+station_id+'/logo.gif')
+		add_dir(station.group('name'),'station='+station_id,BASE_URL+'/data/s/'+station_id+'/logo.gif',total)
 def get_pages(data):
 	pages = []
 	data = substring(data,'<div class=\"pageControls\">','</div>')
@@ -106,10 +106,13 @@ def get_pages(data):
 	return pages
 def list_category(category):
 	data = request(BASE_URL+category)
-	list_stations(data)
+	total = 20
 	if data.find('<div class=\"pageControls\">')>0:
-		for page in get_pages(data):
-			list_stations(request(BASE_URL+page))
+		pages = get_pages(data)
+		total=total+(len(pages)*20)
+		for page in pages:
+			list_stations(request(BASE_URL+page),total)
+	list_stations(data,total)
 	xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_LABEL, label2Mask="%X")
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
