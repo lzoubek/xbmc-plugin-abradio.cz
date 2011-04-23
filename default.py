@@ -48,7 +48,7 @@ def add_dir(name,id,logo,total):
         liz.setInfo( type="Audio", infoLabels={ "Title": name } )
         return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=True,totalItems=total)
 
-def add_stream(name,url,bitrate,logo):
+def add_stream(name,url,bitrate,logo,total):
 	name = name.replace('&amp;','&')
 	if url.find('http://') < 0:
 		url = PLAYER_BASE_URL+url
@@ -56,7 +56,7 @@ def add_stream(name,url,bitrate,logo):
 	li=xbmcgui.ListItem(name,path = url,iconImage="DefaultAudio.png",thumbnailImage=logo)
         li.setInfo( type="Music", infoLabels={ "Title": name,"Size":bitrate } )
 	li.setProperty("IsPlayable","true")
-        return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=li,isFolder=False)
+        return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=li,isFolder=False,totalItems=total)
 
 def play(url):
 	li = xbmcgui.ListItem(path=parse_asx(url),iconImage='DefaulAudio.png')
@@ -141,15 +141,16 @@ def resolve_station(id):
 	name =  station_name(data)
 	logo = station_logo(data)
 	data = substring(data,'<div id=\"playerplugin\">','</select>')
-	for quality in re.compile(u"<option value=\"(?P<stream>[\d]+)\"([=\w\" ]+)?>(?P<name>["+CZECH_CHARS+"\(\)\d\w ]+)</option>").finditer(data,re.IGNORECASE|re.DOTALL):
-		stream = stream_link(PLAYER_BASE_URL+'/player/'+id+'/'+quality.group('stream'))
-		bitrate = quality.group('name')[quality.group('name').find('(')+1:len(quality.group('name'))-5]
+	streams =  list(re.compile(u"<option value=\"(?P<stream>[\d]+)\"([=\w\" ]+)?>(?P<name>["+CZECH_CHARS+"\(\)\d\w ]+)</option>").finditer(data,re.IGNORECASE|re.DOTALL))
+	for st in streams:
+		stream = stream_link(PLAYER_BASE_URL+'/player/'+id+'/'+st.group('stream'))
+		bitrate = st.group('name')[st.group('name').find('(')+1:len(st.group('name'))-5]
 		bit = 0
 		try:
 			bit = int(bitrate)
 		except:
 			pass
-		add_stream(name,stream,bit,logo)
+		add_stream(name,stream,bit,logo,len(streams))
 	xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_LABEL, label2Mask="%X")
 	xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_BITRATE, label2Mask="%X")
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
