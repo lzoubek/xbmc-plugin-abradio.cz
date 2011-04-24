@@ -28,13 +28,11 @@ CZECH_CHARS=u"ěščřžýáíéúóČÍÁÉÚÓŽ"
 TITLE=u"[\!;\&-\/ \.\w\d"+CZECH_CHARS+"]+"
 # do http request, return unicode
 def request(url):
-	req = urllib2.Request(url)
-	response = urllib2.urlopen(req)
-	data = response.read()
-	response.close()
-	return unicode(data,'UTF-8')
+	return unicode(request2(url),'UTF-8')
 #do http request
 def request2(url):
+	if url.find('http://') < 0:
+		url = PLAYER_BASE_URL+url
 	req = urllib2.Request(url)
 	response = urllib2.urlopen(req)
 	data = response.read()
@@ -50,8 +48,6 @@ def add_dir(name,id,logo,total):
 
 def add_stream(name,url,bitrate,logo,total):
 	name = name.replace('&amp;','&')
-	if url.find('http://') < 0:
-		url = PLAYER_BASE_URL+url
 	url=sys.argv[0]+"?play="+url
 	li=xbmcgui.ListItem(name,path = url,iconImage="DefaultAudio.png",thumbnailImage=logo)
         li.setInfo( type="Music", infoLabels={ "Title": name,"Size":bitrate } )
@@ -59,6 +55,7 @@ def add_stream(name,url,bitrate,logo,total):
         return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=li,isFolder=False,totalItems=total)
 
 def play(url):
+	url = stream_link(url)
 	li = xbmcgui.ListItem(path=parse_asx(url),iconImage='DefaulAudio.png')
 	return xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
 # retrieve target stream if url is asx
@@ -143,7 +140,7 @@ def resolve_station(id):
 	data = substring(data,'<div id=\"playerplugin\">','</select>')
 	streams =  list(re.compile(u"<option value=\"(?P<stream>[\d]+)\"([=\w\" ]+)?>(?P<name>["+CZECH_CHARS+"\(\)\d\w ]+)</option>").finditer(data,re.IGNORECASE|re.DOTALL))
 	for st in streams:
-		stream = stream_link(PLAYER_BASE_URL+'/player/'+id+'/'+st.group('stream'))
+		stream = PLAYER_BASE_URL+'/player/'+id+'/'+st.group('stream')
 		bitrate = st.group('name')[st.group('name').find('(')+1:len(st.group('name'))-5]
 		bit = 0
 		try:
@@ -155,8 +152,8 @@ def resolve_station(id):
 	xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_BITRATE, label2Mask="%X")
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
 # gets .asx or m3u link
-def stream_link(link):
-	data = substring(request(link),'<object id=\"iRadio\"','</object>')
+def stream_link(url):
+	data = substring(request(url),'<object id=\"iRadio\"','</object>')
 	link = re.compile('.*<param name=\"url\" value=\"([-/\d\w\.:]+)\".*').match(data)
 	if link == None:
 		return ''
