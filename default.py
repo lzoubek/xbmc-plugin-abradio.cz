@@ -90,7 +90,7 @@ def download_stationfile(dest):
 		print 'Saving station file'
 		data = request('http://abradio.cz/external/rss/radia.xml')
 		f = open(dest,'w')
-		f.write(data.encode('UTF-8'))
+		f.write(unicode(data,'UTF-8').encode('UTF-8'))
 		f.close()
 def get_data():
 	local = xbmc.translatePath(__addon__.getAddonInfo('profile'))
