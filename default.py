@@ -19,50 +19,43 @@
 # *  http://www.gnu.org/copyleft/gpl.html
 # *
 # */
-import urllib2,re,string,sys
+import urllib2,re,sys,time,os
 import xbmcaddon,xbmc,xbmcgui,xbmcplugin
+import elementtree.ElementTree as ET
 
-BASE_URL='http://abradio.cz'
-PLAYER_BASE_URL='http://static.abradio.cz'
-CZECH_CHARS=u"ěščřžýáíéúóČÍÁÉÚÓŽ"
-TITLE=u"[\!;\&-\/ \.\w\d"+CZECH_CHARS+"]+"
-# do http request, return unicode
-def request(url):
-	return unicode(request2(url),'UTF-8')
 #do http request
-def request2(url):
-	if url.find('http://') < 0:
-		url = PLAYER_BASE_URL+url
+def request(url):
 	req = urllib2.Request(url)
 	response = urllib2.urlopen(req)
 	data = response.read()
 	response.close()
 	return data
 
-def add_dir(name,id,logo,total):
+def add_dir(name,id,logo):
 	name = name.replace('&amp;','&')
         u=sys.argv[0]+"?"+id
 	liz=xbmcgui.ListItem(name, iconImage="DefaultFolder.png",thumbnailImage=logo)
         liz.setInfo( type="Audio", infoLabels={ "Title": name } )
-        return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=True,totalItems=total)
+        return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=True)
 
-def add_stream(name,url,bitrate,logo,total):
+def add_stream(name,url,bitrate,logo):
+	bit = 0
+	try:
+		bit = int(bitrate)
+	except:
+		pass
 	name = name.replace('&amp;','&')
 	url=sys.argv[0]+"?play="+url
 	li=xbmcgui.ListItem(name,path = url,iconImage="DefaultAudio.png",thumbnailImage=logo)
-        li.setInfo( type="Music", infoLabels={ "Title": name,"Size":bitrate } )
+        li.setInfo( type="Music", infoLabels={ "Title": name,"Size":bit } )
 	li.setProperty("IsPlayable","true")
-        return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=li,isFolder=False,totalItems=total)
+        return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=li,isFolder=False)
 
-def play(url):
-	url = stream_link(url)
-	li = xbmcgui.ListItem(path=parse_asx(url),iconImage='DefaulAudio.png')
-	return xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
 # retrieve target stream if url is asx
 def parse_asx(url):
 	if not url.endswith('asx'):
 		return url
-	data = request2(url)
+	data = request(url)
 	refs = re.compile('.*<Ref href = \"((mms|http)://[\?\d:\w_\.\/=-]+)\".*').findall(data,re.IGNORECASE|re.DOTALL|re.MULTILINE)
 	urls = []
 	for ref in refs:
@@ -74,90 +67,6 @@ def parse_asx(url):
 		return ''
 	return urls[-1]
 
-def substring(data,start,end):
-	i1 = data.find(start)
-	i2 = data.find(end,i1+1)
-	return data[i1:i2]
-# lists station categories, index
-def list_categories():
-	data = substring(request(BASE_URL),'<div id=\"categories\"','</div>')
-	for cat in re.compile(u"<li><a href=\"(?P<dest>[\/\w-]+)\" title=\""+TITLE+"\">(?P<name>"+TITLE+")</a></li>").finditer(data,re.IGNORECASE|re.DOTALL):
-		add_dir(cat.group('name'),'category='+cat.group('dest'),'',10)
-	xbmcplugin.endOfDirectory(int(sys.argv[1]))
-# lists stations using data 
-def list_stations(data,total):
-	data = substring(data,'<ul class=\"stationlist\">','</ul>')
-	for station in re.compile(u"<li?[= \d\w\"]+><h2[\=\w\d\. /\"]+><a href=\"(?P<url>[-:\.\w\d/]+)\" title=\""+TITLE+"\">(?P<name>"+TITLE+")</a>").finditer(data,re.IGNORECASE|re.DOTALL):
-		i=re.match('.*/([\d]+)/.*',station.group('url'))
-		station_id=i.group(1)
-		add_dir(station.group('name'),'station='+station_id,BASE_URL+'/data/s/'+station_id+'/logo.gif',total)
-# gets list of page links - for large cateogries which are listed on more than 1 pages
-def get_pages(data):
-	pages = []
-	data = substring(data,'<div class=\"pageControls\">','</div>')
-	i=0
-	j=0
-	while True:
-		i = data.find('href',i)
-		if i<j:
-			break
-		j = data.find('\"',i+6)
-		if not data[i+6:j] in pages:
-			pages.append(data[i+6:j])
-		i = j
-	return pages
-# lists stations in given category
-def list_category(category):
-	data = request(BASE_URL+category)
-	total = 20
-	if data.find('<div class=\"pageControls\">')>0:
-		pages = get_pages(data)
-		total=total+(len(pages)*20)
-		for page in pages:
-			list_stations(request(BASE_URL+page),total)
-	list_stations(data,total)
-	xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_LABEL, label2Mask="%X")
-	xbmcplugin.endOfDirectory(int(sys.argv[1]))
-
-#def get_logo(station):
-#	data = substring(request(station),'<link rel=\"image_src\"','/>')
-#	return BASE_URL+re.compile('.*href=\"([-\d\w\/\.]+)\"').findall(data)[0]
-
-# get station name 
-def station_name(data):
-	data = substring(data,'<div class=\"logo\">','</h1>')
-	return re.compile('.*<h1>('+TITLE+')').findall(data)[0]
-# get station logo
-def station_logo(data):
-	logo = substring(data,'<img class=\"logo\" src=\"','alt')
-	logo = re.compile('.*src=\"([\w\d\/\.]+)\".*').findall(logo)
-	return BASE_URL+logo[0]
-# get station, resolve all available streams + bitrates
-def resolve_station(id):
-	data = request(PLAYER_BASE_URL+'/player/'+id)
-	name =  station_name(data)
-	logo = station_logo(data)
-	data = substring(data,'<div id=\"playerplugin\">','</select>')
-	streams =  list(re.compile(u"<option value=\"(?P<stream>[\d]+)\"([=\w\" ]+)?>(?P<name>["+CZECH_CHARS+"\(\)\d\w ]+)</option>").finditer(data,re.IGNORECASE|re.DOTALL))
-	for st in streams:
-		stream = PLAYER_BASE_URL+'/player/'+id+'/'+st.group('stream')
-		bitrate = st.group('name')[st.group('name').find('(')+1:len(st.group('name'))-5]
-		bit = 0
-		try:
-			bit = int(bitrate)
-		except:
-			pass
-		add_stream(name,stream,bit,logo,len(streams))
-	xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_LABEL, label2Mask="%X")
-	xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_BITRATE, label2Mask="%X")
-	xbmcplugin.endOfDirectory(int(sys.argv[1]))
-# gets .asx or m3u link
-def stream_link(url):
-	data = substring(request(url),'<object id=\"iRadio\"','</object>')
-	link = re.compile('.*<param name=\"url\" value=\"([-/\d\w\.:]+)\".*').match(data)
-	if link == None:
-		return ''
-	return link.group(1)
 # retrieves input addon parameters
 def get_params():
         param={}
@@ -177,13 +86,67 @@ def get_params():
                                 
         return param
 
-__settings__ = xbmcaddon.Addon(id='plugin.audio.abradio.cz')
-__language__ = __settings__.getLocalizedString
+def download_stationfile(dest):
+		print 'downloading station file'
+		data = request('http://abradio.cz/external/rss/radia.xml')
+		f = open(dest,'w')
+		f.write(data.encode('UTF-8'))
+		f.close()
+def get_data():
+	local = xbmc.translatePath(__addon__.getAddonInfo('profile'))
+	if not os.path.exists(local):
+		os.makedirs(local)
+	local = os.path.join(local,'statons.xml')
+	if os.path.exists(local):
+		# update local station file when it becomes 1day old
+		if (time.time() - os.path.getctime(local)) > (3600*24):
+			download_stationfile(local)
+	else:
+		download_stationfile(local)
+	return ET.parse(local)
+
+def list_categories():
+	tree = get_data()
+	categories = {}
+	for category in tree.findall('ABRADIOITEM/CATEGORY'):
+		id = category.get('ID')
+		categories[category.get('ID')]=category.text
+	for id in categories.keys():
+		add_dir(categories[id],'category='+id,'')
+        add_dir(__language__(30000),'category=-1','')
+	xbmcplugin.endOfDirectory(int(sys.argv[1]))
+def list_category(id):
+	tree = get_data()
+	for station in tree.findall('ABRADIOITEM'):
+		category = station.find('CATEGORY')
+		if int(id) < 0 or id == category.get('ID'):
+			add_dir(station.find('RADIO').text,'station='+station.find('ID').text,station.find('LOGO').text)
+	xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_LABEL, label2Mask="%X")
+	xbmcplugin.endOfDirectory(int(sys.argv[1]))
+
+def resolve_station(id):
+	tree = get_data()
+	for station in tree.findall('ABRADIOITEM'):
+		if station.find('ID').text == id:
+			name = station.find('RADIO').text
+			logo = station.find('LOGO').text
+			for stream in station.findall('STREAMS/*'):
+				add_stream(name,stream.text,stream.get('name'),logo)
+		        xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_LABEL, label2Mask="%X")
+		        xbmcplugin.addSortMethod( handle=int(sys.argv[1]), sortMethod=xbmcplugin.SORT_METHOD_BITRATE, label2Mask="%X")
+			return xbmcplugin.endOfDirectory(int(sys.argv[1]))
+
+def play(url):
+	li = xbmcgui.ListItem(path=parse_asx(url),iconImage='DefaulAudio.png')
+	return xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
+
+__addon__ = xbmcaddon.Addon(id='plugin.audio.abradio.cz')
+__language__ = __addon__.getLocalizedString
 params=get_params()
 if params=={}:
 	list_categories()
 if 'category' in params.keys():
-	list_category(params['category']+'/')
+	list_category(params['category'])
 if 'station' in params.keys():
 	resolve_station(params['station'])
 if 'play' in params.keys():
