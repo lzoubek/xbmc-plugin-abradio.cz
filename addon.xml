@@ -14,7 +14,9 @@
   </extension>
   <extension point="xbmc.addon.metadata">
     <summary lang="en">Listen to abradio.cz</summary>
-    <description lang="en">abradio.cz offers free Internet czech radio stations.</description>
+    <summary lang="cs">Poslechněte si abradio.cz</summary>
+    <description lang="en">abradio.cz offers most popular czech radio stations.</description>
+    <description lang="cs">abradio.cz nabízí k poslechu nejznámější česká radia.</description>
     <platform>all</platform>
   </extension>
 </addon>

@@ -87,7 +87,7 @@ def get_params():
         return param
 
 def download_stationfile(dest):
-		print 'downloading station file'
+		print 'Saving station file'
 		data = request('http://abradio.cz/external/rss/radia.xml')
 		f = open(dest,'w')
 		f.write(data.encode('UTF-8'))
@@ -96,7 +96,7 @@ def get_data():
 	local = xbmc.translatePath(__addon__.getAddonInfo('profile'))
 	if not os.path.exists(local):
 		os.makedirs(local)
-	local = os.path.join(local,'statons.xml')
+	local = os.path.join(local,'stations.xml')
 	if os.path.exists(local):
 		# update local station file when it becomes 1day old
 		if (time.time() - os.path.getctime(local)) > (3600*24):
@@ -115,6 +115,7 @@ def list_categories():
 		add_dir(categories[id],'category='+id,'')
         add_dir(__language__(30000),'category=-1','')
 	xbmcplugin.endOfDirectory(int(sys.argv[1]))
+
 def list_category(id):
 	tree = get_data()
 	for station in tree.findall('ABRADIOITEM'):
