@@ -30,9 +30,14 @@ def request(url):
 	data = response.read()
 	response.close()
 	return data
+def replace(obj,what=None,replacement=''):
+	if obj == what:
+		return replacement
+	return obj
 
 def add_dir(name,id,logo):
-	name = name.replace('&amp;','&')
+	logo = replace(logo)
+	name = replace(name,None,'No name').replace('&amp;','&')
         u=sys.argv[0]+"?"+id
 	liz=xbmcgui.ListItem(name, iconImage="DefaultFolder.png",thumbnailImage=logo)
         liz.setInfo( type="Audio", infoLabels={ "Title": name } )
@@ -44,7 +49,8 @@ def add_stream(name,url,bitrate,logo):
 		bit = int(bitrate)
 	except:
 		pass
-	name = name.replace('&amp;','&')
+	name = replace(name,None,'No name').replace('&amp;','&')
+	logo = replace(logo)
 	url=sys.argv[0]+"?play="+url
 	li=xbmcgui.ListItem(name,path = url,iconImage="DefaultAudio.png",thumbnailImage=logo)
         li.setInfo( type="Music", infoLabels={ "Title": name,"Size":bit } )
@@ -56,11 +62,11 @@ def parse_asx(url):
 	if not url.endswith('asx'):
 		return url
 	data = request(url)
-	refs = re.compile('.*<Ref href = \"((mms|http)://[\?\d:\w_\.\/=-]+)\".*').findall(data,re.IGNORECASE|re.DOTALL|re.MULTILINE)
+	refs = re.compile('.*<Ref href = \"([^\"]+).*').findall(data,re.IGNORECASE|re.DOTALL|re.MULTILINE)
 	urls = []
 	for ref in refs:
-		stream = parse_asx(ref[0])
-		urls.append(stream)
+		stream = parse_asx(ref)
+		urls.append(stream.replace(' ','%20'))
 	if urls == []:
 		print 'Unable to parse '+url
 		print data
