@@ -57,15 +57,17 @@ def add_stream(name,url,bitrate,logo):
 	li.setProperty("IsPlayable","true")
         return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=li,isFolder=False)
 
-# retrieve target stream if url is asx
-def parse_asx(url):
+# retrieve target stream if url is asx or m3u
+def parse_playlist(url):
+	if url.endswith('m3u'):
+		return request(url).strip()
 	if not url.endswith('asx'):
 		return url
 	data = request(url)
 	refs = re.compile('.*<Ref href = \"([^\"]+).*').findall(data,re.IGNORECASE|re.DOTALL|re.MULTILINE)
 	urls = []
 	for ref in refs:
-		stream = parse_asx(ref)
+		stream = parse_playlist(ref)
 		urls.append(stream.replace(' ','%20'))
 	if urls == []:
 		print 'Unable to parse '+url
@@ -144,7 +146,7 @@ def resolve_station(id):
 			return xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
 def play(url):
-	li = xbmcgui.ListItem(path=parse_asx(url),iconImage='DefaulAudio.png')
+	li = xbmcgui.ListItem(path=parse_playlist(url),iconImage='DefaulAudio.png')
 	return xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
 
 __addon__ = xbmcaddon.Addon(id='plugin.audio.abradio.cz')
