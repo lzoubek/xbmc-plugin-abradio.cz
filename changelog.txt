@@ -1,3 +1,5 @@
+[B]3.0.0:[/B]
+- version bump for gotham
 [B]2.0.1:[/B]
 - fixes for eden
 [B]1.0.1:[/B]
