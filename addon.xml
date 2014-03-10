@@ -2,7 +2,7 @@
 <addon id="plugin.audio.abradio.cz"
        name="abradio.cz"
        version="3.0.0"
-       provider-name="lzoubek">
+       provider-name="Libor Zoubek">
   <requires>
     <import addon="xbmc.python" version="2.1.0"/>
     <import addon="script.module.elementtree" version="1.2.7" />
