@@ -4,7 +4,7 @@
        version="3.0.0"
        provider-name="Libor Zoubek">
   <requires>
-    <import addon="xbmc.python" version="2.1.0"/>
+    <import addon="xbmc.python" version="2.14.0"/>
     <import addon="script.module.elementtree" version="1.2.7" />
   </requires>
   <extension point="xbmc.python.pluginsource"
@@ -18,5 +18,9 @@
     <description lang="en">abradio.cz offers most popular czech radio stations.</description>
     <description lang="cs">abradio.cz nabízí k poslechu nejznámější česká radia.</description>
     <platform>all</platform>
+    <language>cs sk</language>
+    <license>GNU GENERAL PUBLIC LICENSE. Version 2, June 1991</license>
+    <source>https://github.com/lzoubek/xbmc-plugin-abradio.cz</source>
+    <email>lzoubek at jezzovo dot net</email>
   </extension>
 </addon>
